@@ -1,198 +1,207 @@
-import { CaseRecord } from '../types/lex';
+import { CaseRecord, GovernanceConfig } from '../types/lex';
 
 export interface CustodiaInput {
   cenario: 'A' | 'B';
-  semMandado: boolean;
+  notasParlatorio: string;
+  invasaoDomiciliar: boolean;
+  filhosMenores: boolean;
   semAudioVideo: boolean;
-  primarioResidenciaFixa: boolean;
-  integridadeViolada: boolean;
 }
 
-export function generateCustodiaDraft(
+export function generateCustodiaStrategyOutput(
   caso: CaseRecord,
-  input: CustodiaInput
-): { title: string; subtitle: string; content: string } {
-  const isCenarioB = input.cenario === 'B';
-  const nulidades: string[] = [];
-  if (input.semMandado) {
-    nulidades.push(
-      'ingresso domiciliar sem mandado judicial e sem fundadas razões prévias (Tema 280 STF — RE 603.616)'
+  input: CustodiaInput,
+  gov: GovernanceConfig
+): {
+  perguntas: string[];
+  sustentacao: string;
+  pedidosCascata: { nivel: string; texto: string }[];
+} {
+  const perguntas = [
+    `Raízes Lícitas: "Qual sua ocupação lícita atual, endereço fixo em ${gov.comarcaPadrao} e quem depende financeiramente do senhor?"`,
+    'Dinâmica da Abordagem (Blindagem de Mérito): "Onde exatamente o senhor estava quando a guarnição chegou? Houve autorização escrita ou filmada para entrada na residência?"',
+    'Integridade Física (Resolução CNJ 213): "Sofreu alguma agressão física, ameaça ou coação entre a abordagem e a chegada a este Núcleo?"',
+  ];
+
+  const notasResumo = input.notasParlatorio.trim() || caso.resumoFatos;
+  const isGarantista = gov.posturaCombativa === 'garantista';
+
+  if (input.cenario === 'A') {
+    return {
+      perguntas,
+      sustentacao: `[CENÁRIO A · CELERIDADE E CONSONÂNCIA]
+"${gov.vocativoPadrao}, cumprimento Vossa Excelência e o ilustre representante do Ministério Público."
+
+Diante da manifestação ministerial favorável à concessão da liberdade provisória em favor de ${caso.assistido}, a defesa ratifica integralmente o parecer pela restituição imediata do status libertatis.
+
+Conforme os elementos colhidos (${notasResumo}), requer-se apenas que eventuais medidas cautelares do Art. 319 do CPP sejam adequadas ao horário laboral do custodiado, sem prejuízo de seu sustento familiar. Pede deferimento.`,
+      pedidosCascata: [
+        {
+          nivel: '1º Principal',
+          texto: 'Homologação da liberdade provisória sem fiança, em consonância com o MP.',
+        },
+        {
+          nivel: '2º Subsidiário',
+          texto: 'Adequação das cautelares do Art. 319 CPP ao turno de trabalho do assistido.',
+        },
+        {
+          nivel: '3º Garantia',
+          texto: 'Expedição imediata de Alvará de Soltura clausulado em audiência.',
+        },
+      ],
+    };
+  }
+
+  const preliminares: string[] = [];
+  if (input.invasaoDomiciliar) {
+    preliminares.push(
+      'violação de domicílio sem mandado judicial e sem fundadas razões prévias (Art. 240 CPP e Tema 280 STF — RE 603.616)'
     );
   }
   if (input.semAudioVideo) {
-    nulidades.push(
-      'ausência de documentação escrita ou registro audiovisual do suposto consentimento do morador (HC 598.051/SP — STJ)'
-    );
-  }
-  if (input.integridadeViolada) {
-    nulidades.push(
-      'indícios de violência ou violação à integridade física durante a abordagem, exigindo encaminhamento imediato ao ITEP/IML e comunicação ao MP'
+    preliminares.push(
+      'ausência de termo escrito ou registro audiovisual da diligência, descumprindo o ônus probatório estatal firmado no HC 598.051/SP (STJ)'
     );
   }
 
-  const nulidadeTexto =
-    nulidades.length > 0
-      ? nulidades.map((n, i) => `  ${i + 1}) ${n};`).join('\n')
-      : '  1) Ausência de situação flagrancial típica nos termos do Art. 302 do CPP;';
+  const preliminarTexto =
+    preliminares.length > 0
+      ? `A defesa requer, preliminarmente, o RELAXAMENTO DA PRISÃO EM FLAGRANTE diante de ${preliminares.join(
+          ' e '
+        )}. A mera alegação subjetiva de "atitude suspeita" ou "nervosismo" contamina todas as provas obtidas por derivação (Teoria dos Frutos da Árvore Envenenada).`
+      : 'A defesa requer o relaxamento da prisão por ausência de hipótese flagrancial típica nos termos do Art. 302 do CPP.';
 
-  const content = isCenarioB
-    ? `EXCELENTÍSSIMO(A) SENHOR(A) JUIZ(A) DE DIREITO — ${caso.varaComarca.toUpperCase()}
-Processo/APF nº ${caso.processo} · Assistido: ${caso.assistido}
+  const sustentacao = `[CENÁRIO B · ${isGarantista ? 'GARANTISTA COMBATIVO' : 'PRAGMÁTICO CAUTELAR'}]
+"${gov.vocativoPadrao}, cumprimento Vossa Excelência e o ilustre representante do Ministério Público."
 
-1. PRELIMINAR DE ILICITUDE E RELAXAMENTO DA PRISÃO (ART. 310, I, CPP)
-Excelência, em contraposição ao requerimento ministerial de conversão em prisão preventiva, a Defesa Técnica destaca vícios insanáveis no Auto de Prisão em Flagrante referente à imputação de ${caso.imputacao}:
-${nulidadeTexto}
+1. PRELIMINAR DE NULIDADE PROBATÓRIA (ART. 310, I, CPP)
+${preliminarTexto}
 
-Nos termos do Tema 280 de Repercussão Geral do STF e do paradigma vinculante firmado no HC 598.051/SP (6ª Turma do STJ), o ônus de comprovar a legalidade da busca sem mandado incumbe exclusivamente aos agentes estatais. A dúvida ou ausência de prova audiovisual resolve-se em favor da inviolabilidade domiciliar (Art. 5º, XI, CF).
+2. INSUBSISTÊNCIA DO PERICULUM LIBERTATIS (ART. 312 CPP)
+Subsidiariamente, caso superada a preliminar, constata-se nos autos: "${notasResumo}". A gravidade abstrata do delito (${caso.imputacao}) não supre a ausência de contemporaneidade nem de perigo concreto exigidos pelo Art. 312 e Art. 315, §2º do CPP.${
+    input.filhosMenores
+      ? ' Ademais, o custodiado é responsável por filhos menores de 12 anos, atraindo a incidência do Art. 318 do CPP e do HC Coletivo 143.641/STF.'
+      : ''
+  }
 
-2. SÍNTESE DO CONTEXTO FÁTICO
-${caso.resumoFatos}
-
-3. INSUBSISTÊNCIA DO PERICULUM LIBERTATIS (ART. 312 E 315, §2º, CPP)
-A gravidade abstrata do delito não autoriza a custódia cautelar automática. ${
-        input.primarioResidenciaFixa
-          ? 'O custodiado é primário, possui residência fixa comprovada e vínculos familiares sólidos na comarca.'
-          : 'Não há demonstração de contemporaneidade ou risco concreto à instrução processual.'
-      }
-
-4. REQUERIMENTOS FINAIS
-a) O RELAXAMENTO IMEDIATO da prisão em flagrante pela ilicitude originária (Art. 5º, LXV, CF);
-b) Subsidiariamente, a concessão de LIBERDADE PROVISÓRIA com ou sem medidas cautelares diversas do Art. 319 do CPP.`
-    : `EXCELENTÍSSIMO(A) SENHOR(A) JUIZ(A) DE DIREITO — ${caso.varaComarca.toUpperCase()}
-Processo/APF nº ${caso.processo} · Assistido: ${caso.assistido}
-
-1. ADESÃO À MANIFESTAÇÃO MINISTERIAL FAVORÁVEL (CENÁRIO A)
-Excelência, a Defesa Técnica acompanha a manifestação do Ministério Público pela desnecessidade de custódia cautelar extrema no presente feito (${caso.imputacao}).
-
-2. CONTEXTO FÁTICO E CONDIÇÕES PESSOAIS
-${caso.resumoFatos}
-${
-  input.primarioResidenciaFixa
-    ? 'Restam comprovadas a primariedade técnica, residência fixa e ausência de periculosidade concreta.'
-    : 'As circunstâncias do fato demonstram plena adequação das cautelares alternativas.'
-}
-
-3. REQUERIMENTOS
-Requer a imediata expedição de ALVARÁ DE SOLTURA, com homologação da liberdade provisória mediante termo de comparecimento aos atos processuais (Art. 319, I, CPP), dispensando-se fiança diante da hipossuficiência ou proporcionalidade.`;
+3. PEDIDOS EM CASCATA
+Requer o relaxamento imediato do flagrante; subsidiariamente, liberdade provisória com cautelares do Art. 319 do CPP; e, no limite, substituição por prisão domiciliar.`;
 
   return {
-    title: `Sustentação Oral — Custódia (${isCenarioB ? 'Cenário B · Combativo' : 'Cenário A · Consensual'})`,
-    subtitle: `${caso.varaComarca} · ${caso.assistido}`,
-    content,
+    perguntas,
+    sustentacao,
+    pedidosCascata: [
+      {
+        nivel: '1º Principal',
+        texto:
+          'Relaxamento da prisão ilegal por violação de domicílio (Art. 5º, LXV, CF).',
+      },
+      {
+        nivel: '2º Subsidiário',
+        texto:
+          'Liberdade Provisória sem fiança ou com cautelares do Art. 319 do CPP.',
+      },
+      {
+        nivel: '3º Subsidiário',
+        texto: input.filhosMenores
+          ? 'Prisão Domiciliar (Art. 318 CPP / HC Coletivo 143.641 STF — imprescindibilidade aos filhos).'
+          : 'Substituição cautelar proporcional e expedição de contramandado.',
+      },
+    ],
   };
 }
 
-export function generateAijDraft(
+export function generateAijOralOutput(
   caso: CaseRecord,
-  focusPoints: {
-    contradicaoAbordagem: boolean;
-    cadeiaCustodia: boolean;
-    reconhecimento226: boolean;
-  }
+  varaSelecionada: string,
+  contradicoes: string,
+  opcoes: { cadeia158a: boolean; reconhecimento226: boolean }
 ): { title: string; subtitle: string; content: string } {
-  const perguntas: string[] = [
-    '1. [Contexto Inicial] Qual era exatamente a distância, o horário e a luminosidade no momento em que a equipe avistou o acusado?',
-    '2. [Registro Audiovisual] A viatura ou os agentes portavam câmeras corporais (bodycams) ou registraram a abordagem em áudio/vídeo?',
-  ];
-
-  if (focusPoints.contradicaoAbordagem) {
-    perguntas.push(
-      '3. [Fundadas Razões] Antes da abordagem pessoal ou ingresso, qual elemento objetivo e concreto indicava crime em andamento além de eventual denúncia anônima?'
+  const blocosNulidade: string[] = [];
+  if (opcoes.cadeia158a) {
+    blocosNulidade.push(
+      'DA QUEBRA DA CADEIA DE CUSTÓDIA (ARTS. 158-A A 158-F DO CPP): A prova digital/vestigial carreada padece de nulidade, uma vez que o material apreendido não observou a rastreabilidade de lacre e integridade (código hash), impossibilitando aferir sua mesmidade.'
     );
   }
-  if (focusPoints.cadeiaCustodia) {
-    perguntas.push(
-      '4. [Cadeia de Custódia — Art. 158-A CPP] Quem realizou o acondicionamento do material, qual o número do lacre utilizado no local e quem manteve a custódia até a entrega na central?'
-    );
-  }
-  if (focusPoints.reconhecimento226) {
-    perguntas.push(
-      '5. [Reconhecimento — Art. 226 CPP] Foi exibida fotografia isolada do acusado à vítima antes do reconhecimento formal? Havia outras pessoas de características semelhantes lado a lado?'
+  if (opcoes.reconhecimento226) {
+    blocosNulidade.push(
+      'DO VÍCIO DE RECONHECIMENTO (ART. 226 DO CPP): A identificação realizada sem observância do alinhamento formal de pessoas semelhantes viola garantia cogente reconhecida pelo STJ (HC 598.886), não podendo sustentar condenação.'
     );
   }
 
-  const content = `ROTEIRO DE AUDIÊNCIA DE INSTRUÇÃO E JULGAMENTO (AIJ) & ALEGAÇÕES ORAIS
-Juízo: ${caso.varaComarca} · Processo: ${caso.processo}
-Assistido: ${caso.assistido} · Imputação: ${caso.imputacao}
+  const content = `"Meritíssimo Juiz de Direito da ${varaSelecionada}, cumprimento Vossa Excelência, o ilustre representante do Ministério Público, os servidores desta serventia e os presentes."
+Processo nº ${caso.processo} · Assistido: ${caso.assistido}
 
-PARTE I — PERGUNTAS ESTRATÉGICAS ÀS TESTEMUNHAS / POLICIAIS
-${perguntas.join('\n')}
+1. SÍNTESE PROBATÓRIA COLHIDA EM AUDIÊNCIA
+Excelência, a instrução criminal realizada nesta data sepultou a tese acusatória quanto à imputação de ${caso.imputacao}. Como restou evidente nos depoimentos colhidos sob o crivo do contraditório:
+"${contradicoes.trim() || caso.resumoFatos}"
 
-PARTE II — ALEGAÇÕES FINAIS ORAIS (ART. 403, §3º, CPP)
-Excelência, encerrada a instrução criminal, impõe-se a improcedência da pretensão punitiva estatal.
-
-1. PRELIMINAR DE NULIDADE PROBATÓRIA
-A prova produzida em juízo não supriu as irregularidades da fase inquisitorial descritas nos autos:
-"${caso.resumoFatos}"
+2. PRELIMINARES DE NULIDADE E INSUFICIÊNCIA PROBATÓRIA
 ${
-  focusPoints.reconhecimento226
-    ? 'O reconhecimento em desconformidade com o Art. 226 do CPP, conforme jurisprudência consolidada do STJ (HC 598.886), é inválido e não serve de lastro exclusivo à condenação.'
-    : ''
-}
-${
-  focusPoints.cadeiaCustodia
-    ? 'Ademais, a ausência de preservação rigorosa dos vestígios viola os Arts. 158-A a 158-F do CPP, comprometendo a confiabilidade da prova pericial.'
-    : ''
+  blocosNulidade.length > 0
+    ? blocosNulidade.join('\n\n')
+    : 'A prova produzida exclusivamente na fase policial não foi confirmada por elementos judiciais independentes (Art. 155 CPP).'
 }
 
-2. MÉRITO E IN DUBIO PRO REO (ART. 386, VII, CPP)
-Os depoimentos colhidos sob o crivo do contraditório limitaram-se a reproduzir suposições policiais sem prova judicial independente e segura. Diante da dúvida razoável, a absolvição é medida de rigor.
+3. MÉRITO — IN DUBIO PRO REO (ART. 386, II E VII, CPP)
+Diante das contradições entre o inquérito e a oitiva judicial, instala-se dúvida razoável insuperável que impõe a absolvição.
 
-3. REQUERIMENTOS
-Requer a Defesa a ABSOLVIÇÃO de ${caso.assistido} com fundamento no Art. 386, incisos II, V ou VII do CPP, com imediata expedição de alvará de soltura.`;
+4. PEDIDOS FINAIS ORAIS (ART. 403, §3º, CPP)
+Requer a defesa:
+a) Preliminarmente, o reconhecimento da ilicitude da prova contaminada;
+b) No mérito, a ABSOLVIÇÃO de ${caso.assistido} nos termos do Art. 386, incisos II e VII, do CPP;
+c) Subsidiariamente, a desclassificação, fixação da pena-base no mínimo legal, substituição por restritivas de direitos (Art. 44 CP) e o direito de recorrer em liberdade.`;
 
   return {
-    title: 'Roteiro AIJ & Alegações Finais Orais (Art. 403, §3º CPP)',
-    subtitle: `${caso.varaComarca} · ${caso.assistido}`,
+    title: `Memoriais Orais AIJ — ${varaSelecionada}`,
+    subtitle: `${caso.assistido} · Art. 403, §3º CPP`,
     content,
   };
 }
 
-export function generateTribunaisDraft(
+export function generateAntiSumula7Output(
   caso: CaseRecord,
-  teses: {
+  violacoes: {
     art158a: boolean;
+    art240: boolean;
     art226: boolean;
     orcrim: boolean;
-    desproporcionalidade: boolean;
-  }
-): { title: string; subtitle: string; content: string } {
-  const blocos: string[] = [];
+  },
+  trechoAcordao: string
+): { status: string; title: string; subtitle: string; content: string } {
+  const dispositivos: string[] = [];
+  if (violacoes.art158a) dispositivos.push('Art. 158-A a 158-F do CPP');
+  if (violacoes.art240) dispositivos.push('Art. 240 e 244 do CPP (Tema 280 STF)');
+  if (violacoes.art226) dispositivos.push('Art. 226 do CPP (HC 598.886 STJ)');
+  if (violacoes.orcrim) dispositivos.push('Art. 2º da Lei 12.850/13');
 
-  if (teses.art158a) {
-    blocos.push(`• QUEBRA DA CADEIA DE CUSTÓDIA (ART. 158-A E SEGUINTES DO CPP)
-Não há registro cronológico de coleta, lacre numerado, nem comprovação de integridade (código hash) de eventual prova digital ou física apreendida, impondo o desentranhamento do acervo contaminado.`);
-  }
-  if (teses.art226) {
-    blocos.push(`• NULIDADE DO RECONHECIMENTO PESSOAL/FOTOGRÁFICO (ART. 226 CPP)
-O procedimento legal previsto no Art. 226 do CPP constitui garantia mínima contra erros judiciários, não mera recomendação, conforme orientação pacífica das Turmas Criminais do STJ.`);
-  }
-  if (teses.orcrim) {
-    blocos.push(`• AUSÊNCIA DE ELEMENTOS CONCRETOS DE ORCRIM (LEI 12.850/13)
-A peça acusatória e o decreto cautelar não demonstram divisão estruturada de tarefas, estabilidade associativa nem liderança, restringindo-se a imputações genéricas.`);
-  }
-  if (teses.desproporcionalidade) {
-    blocos.push(`• DESPROPORCIONALIDADE DA PRISÃO CAUTELAR (ART. 282, §6º, CPP)
-A prisão preventiva é a ultima ratio do sistema cautelar, devendo ser substituída por medidas do Art. 319 do CPP quando não evidenciada insuficiência das cautelares diversas.`);
-  }
+  const temFatoProibido =
+    /reexaminar provas|rediscutir depoimento|fatos não provados/i.test(
+      trechoAcordao
+    );
 
-  const content = `MEMORIAIS / RAZÕES DE HABEAS CORPUS — TRIBUNAIS SUPERIORES (STJ / STF)
-Feito de Origem: ${caso.processo} · ${caso.varaComarca}
-Paciente: ${caso.assistido} · Imputação: ${caso.imputacao}
+  const dispTexto =
+    dispositivos.length > 0 ? dispositivos.join(', ') : 'Art. 312 e 315 do CPP';
 
-1. OBJETO DA IMPETRAÇÃO E CONSTRANGIMENTO ILEGAL
-Submete-se à apreciação desta Corte Superior flagrante constrangimento ilegal decorrente de decisão que manteve a constrição cautelar / validou provas obtidas em violação direta a normas processuais cogentes.
-Contexto fático: ${caso.resumoFatos}
+  const content = `PRELIMINAR DE ADMISSIBILIDADE — AFASTAMENTO DA SÚMULA 7/STJ & PRÉ-QUESTIONAMENTO
+Processo de Origem: ${caso.processo} · Paciente/Recorrente: ${caso.assistido}
+Dispositivos Violados: ${dispTexto}
 
-2. TESES JURÍDICAS VINCULANTES
-${blocos.length > 0 ? blocos.join('\n\n') : '• Violação frontal aos princípios da legalidade estrita e presunção de inocência (Art. 5º, LVII, CF).'}
+1. DISTINÇÃO ENTRE REEXAME FÁTICO E REVALORAÇÃO JURÍDICA
+Não se busca nesta Corte Superior o revolvimento do acervo fático-probatório (óbice da Súmula 7/STJ), mas a estrita REVALORAÇÃO JURÍDICA da moldura fática expressamente delineada no v. acórdão recorrido.
 
-3. PEDIDO LIMINAR E DE MÉRITO
-Requer-se a concessão da ordem, inclusive em caráter liminar, para declarar a ilicitude das provas questionadas e determinar o imediato relaxamento ou revogação da prisão preventiva do Paciente ${caso.assistido}.`;
+2. MOLDURA FÁTICA INCONTROVERSA EXTRAÍDA DO ACÓRDÃO
+"${trechoAcordao.trim() || caso.resumoFatos}"
+
+3. VIOLAÇÃO DIRETA À LEGISLAÇÃO FEDERAL (PRÉ-QUESTIONAMENTO EXPLÍCITO)
+A premissa fática registrada pelo Tribunal de origem — incontroversa nos autos — evidencia contrariedade frontal aos dispositivos federais prequestionados (${dispTexto}), autorizando o conhecimento e provimento do recurso especial / habeas corpus substitutivo para declarar a nulidade da prova e revogar a constrição cautelar.`;
 
   return {
-    title: 'Razões de Habeas Corpus / Recurso Especial (STJ & STF)',
-    subtitle: `${caso.assistido} · ${caso.processo}`,
+    status: temFatoProibido
+      ? 'Atenção: evite expressões de reexame fático; texto ajustado para revaloração jurídica.'
+      : `Pré-questionado · Violação Federal: ${dispTexto}`,
+    title: 'Razões STJ/STF — Blindagem Anti-Súmula 7',
+    subtitle: `${caso.assistido} · ${dispTexto}`,
     content,
   };
 }
@@ -207,6 +216,7 @@ export interface SeeuCalculationResult {
   progressPercent: number;
   projectedDateStr: string;
   isEligibleNow: boolean;
+  indultoStatus: string;
 }
 
 export function calculateSeeuProgression(params: {
@@ -238,6 +248,13 @@ export function calculateSeeuProgression(params: {
   const projected = new Date(now.getTime() + remainingDays * 24 * 60 * 60 * 1000);
   const projectedDateStr = projected.toLocaleDateString('pt-BR');
 
+  const indultoStatus =
+    params.fractionPercent <= 20 && progressPercent >= 25
+      ? 'Elegível (Comutação 1/5)'
+      : params.fractionPercent >= 40
+      ? 'Vedado (Fração Hedionda)'
+      : 'Em análise de requisito objetivo';
+
   return {
     totalDays,
     requiredDays,
@@ -248,6 +265,7 @@ export function calculateSeeuProgression(params: {
     progressPercent,
     projectedDateStr,
     isEligibleNow: remainingDays === 0,
+    indultoStatus,
   };
 }
 
@@ -268,12 +286,14 @@ A Defesa Técnica vem requerer a retificação do atestado de pena e a consequen
 • Tempo cumprido + detração: ${calc.servedDays} dias efetivos em cumprimento
 • Dias remidos homologados / pleiteados: ${calc.remittedDays} dias
 • Total computado até a presente data: ${calc.effectiveDays} dias (${calc.progressPercent}% do requisito objetivo)
-• Previsão do requisito objetivo: ${calc.isEligibleNow ? 'REQUISITO JÁ IMPLEMENTADO' : `${calc.projectedDateStr} (restam ${calc.remainingDays} dias)`}
+• Previsão do requisito objetivo: ${
+    calc.isEligibleNow
+      ? 'REQUISITO JÁ IMPLEMENTADO'
+      : `${calc.projectedDateStr} (restam ${calc.remainingDays} dias)`
+  }
+• Análise de Indulto / Comutação: ${calc.indultoStatus}
 
-3. REQUISITO SUBJETIVO
-O reeducando ostenta atestado de boa conduta carcerária emitido pela direção do estabelecimento prisional, sem falta grave pendente de homologação.
-
-4. PEDIDO
+3. PEDIDO
 Requer a imediata atualização do cálculo no sistema SEEU e o deferimento da progressão de regime em favor de ${caso.assistido}.`;
 
   return {
@@ -283,18 +303,41 @@ Requer a imediata atualização do cálculo no sistema SEEU e o deferimento da p
   };
 }
 
-export function generateWhatsappMessage(
+export function generateHumanizedWhatsapp(
   caso: CaseRecord,
-  situacaoAtualizacao: string,
-  proximosPassos: string
+  technicalText: string
 ): string {
-  return `Olá, tudo bem? Aqui é da equipe jurídica responsável pela defesa de *${caso.assistido}* (Processo nº ${caso.processo} — ${caso.varaComarca}).
+  const lower = technicalText.toLowerCase();
+  const isAlvara =
+    lower.includes('alvará') ||
+    lower.includes('liberdade provisória') ||
+    lower.includes('relaxamento');
+  const isProgressao =
+    lower.includes('progressão') ||
+    lower.includes('semiaberto') ||
+    lower.includes('seeu');
 
-*Atualização do caso:*
-${situacaoAtualizacao}
+  if (isAlvara) {
+    return `Olá! Tenho uma atualização muito importante sobre o caso de ${caso.assistido}.
 
-*Próximos passos da Defesa:*
-${proximosPassos}
+Acabamos de acompanhar a decisão favorável no processo (${caso.processo}): o Juiz concedeu a liberdade provisória e determinou a expedição do Alvará de Soltura.
 
-Seguimos acompanhando cada movimentação com total atenção e transparência. Qualquer dúvida ou documento familiar (comprovante de residência ou trabalho lícito), pode enviar por aqui.`;
+Ele responderá ao processo em liberdade, cumprindo apenas compromissos simples determinados pelo juízo (como comparecimento periódico e atualização de endereço). Nossa equipe já está acompanhando o cumprimento do alvará junto à unidade para que a soltura ocorra o quanto antes. Qualquer novidade, aviso imediatamente!`;
+  }
+
+  if (isProgressao) {
+    return `Olá! Passando para atualizar vocês com clareza sobre a execução penal de ${caso.assistido} (${caso.processo}).
+
+Já conferimos o cálculo atualizado de cumprimento de pena e dias remidos por trabalho/estudo, e protocolamos o pedido de progressão para o regime menos gravoso no sistema SEEU.
+
+Agora o pedido segue para parecer do Ministério Público e decisão do Juiz da Execução Penal. Seguimos acompanhando diariamente e avisamos assim que houver movimentação!`;
+  }
+
+  return `Olá! Passando para atualizar vocês sobre o andamento de ${caso.assistido} (${caso.processo} — ${caso.varaComarca}) com total transparência.
+
+Analisamos a última movimentação registrada nos autos ("${technicalText
+    .trim()
+    .slice(0, 95)}...") e já adotamos as providências técnicas cabíveis em defesa dos direitos dele.
+
+Nossa equipe segue monitorando o processo passo a passo. Caso precisem enviar algum comprovante de residência ou trabalho lícito atualizado, podem encaminhar por aqui.`;
 }

@@ -11,6 +11,7 @@ import {
   Pause,
   Play,
   RotateCcw,
+  Send,
   ShieldCheck,
 } from 'lucide-react';
 
@@ -21,6 +22,7 @@ interface ForumModeScreenProps {
   onSelectDoc: (docId: string) => void;
   onUpdateDocContent: (docId: string, content: string) => void;
   onValidateDoc: (docId: string) => void;
+  onRequestReview: (docId: string) => void;
   onNotify: (msg: string) => void;
 }
 
@@ -31,6 +33,7 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
   onSelectDoc,
   onUpdateDocContent,
   onValidateDoc,
+  onRequestReview,
   onNotify,
 }) => {
   const activeDoc =
@@ -44,9 +47,10 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
   const [timerRunning, setTimerRunning] = useState<boolean>(false);
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-  const canValidate = ROLE_META[session.role].canValidate;
+  const perms = ROLE_META[session.role].permissions;
+  const canValidate = perms.canValidate;
+  const canExportProtocol = perms.canExportProtocol;
 
-  // Sustentation timer
   useEffect(() => {
     if (!timerRunning) return;
     const id = window.setInterval(() => {
@@ -62,7 +66,6 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
     return () => clearInterval(id);
   }, [timerRunning, onNotify]);
 
-  // Teleprompter auto-scroll
   useEffect(() => {
     if (autoScrollSpeed === 0 || isEditing) return;
     const id = window.setInterval(() => {
@@ -90,6 +93,12 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
 
   const handleExportTxt = () => {
     if (!activeDoc) return;
+    if (!canExportProtocol) {
+      onNotify(
+        'Exportação oficial para PJe/SEEU requer perfil Advogado ou Escritório'
+      );
+      return;
+    }
     const header = `${activeDoc.title}\n${activeDoc.subtitle}\nStatus: ${
       activeDoc.status === 'validado'
         ? `Validado por ${activeDoc.validatedBy} (${activeDoc.validatedOab})`
@@ -112,7 +121,7 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
   if (!activeDoc) {
     return (
       <div className="rounded-2xl bg-[#0B111E] border border-slate-800 p-8 text-center text-sm text-slate-400">
-        Nenhum documento no Modo Fórum. Gere uma peça no Lex Criminal para iniciar.
+        Nenhum documento no Modo Fórum. Gere uma peça na War Room para iniciar.
       </div>
     );
   }
@@ -136,16 +145,20 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
           </h2>
         </div>
 
-        {/* Seletor de Peça + Foco */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
           <select
             value={activeDoc.id}
             onChange={(e) => onSelectDoc(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-[#0B111E] border border-slate-800 text-xs text-slate-100 max-w-xs focus:outline-none focus:border-amber-500"
+            className="w-full sm:w-auto sm:max-w-xs min-h-[44px] px-3 py-2 rounded-xl bg-[#0B111E] border border-slate-800 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
           >
             {documents.map((doc) => (
               <option key={doc.id} value={doc.id}>
-                {doc.assistido} · {doc.status === 'validado' ? 'Validado' : 'Rascunho'}
+                {doc.assistido} ·{' '}
+                {doc.status === 'validado'
+                  ? 'Validado'
+                  : doc.status === 'revisao_solicitada'
+                  ? 'Revisão Solicitada'
+                  : 'Rascunho'}
               </option>
             ))}
           </select>
@@ -153,7 +166,7 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
           <button
             type="button"
             onClick={() => setIsTeleprompterFocus((v) => !v)}
-            className="px-3 py-2 rounded-xl bg-[#0B111E] border border-slate-800 hover:border-amber-500/40 text-xs font-semibold text-slate-200 flex items-center gap-1.5 transition-colors"
+            className="w-full sm:w-auto min-h-[44px] px-3.5 py-2 rounded-xl bg-[#0B111E] border border-slate-800 hover:border-amber-500/40 text-xs font-semibold text-slate-200 flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap"
           >
             {isTeleprompterFocus ? (
               <>
@@ -171,9 +184,8 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
       </div>
 
       {/* Controles de Teleprompter & Cronômetro */}
-      <div className="rounded-2xl bg-[#0B111E] border border-slate-800 px-4 py-3 flex flex-wrap items-center justify-between gap-4">
-        {/* Cronômetro */}
-        <div className="flex items-center gap-3">
+      <div className="rounded-2xl bg-[#0B111E] border border-slate-800 p-3.5 sm:px-4 sm:py-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex items-center justify-between md:justify-start gap-3">
           <div>
             <span className="text-[10px] font-semibold text-slate-400 block">
               Cronômetro Oral
@@ -190,7 +202,7 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
             <button
               type="button"
               onClick={() => setTimerRunning((r) => !r)}
-              className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center gap-1.5"
+              className="min-h-[40px] px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center gap-1.5"
             >
               {timerRunning ? (
                 <>
@@ -211,20 +223,20 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
                 setTimerSeconds(900);
               }}
               title="Resetar para 15:00"
-              className="p-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 hover:text-white"
+              aria-label="Resetar cronômetro para 15:00"
+              className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg bg-slate-950 border border-slate-800 text-slate-300 hover:text-white"
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
-        {/* Fonte, Auto-Scroll e Edição */}
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-lg p-1">
             <button
               type="button"
               onClick={() => setFontSize((s) => Math.max(14, s - 2))}
-              className="px-2 py-1 text-xs font-semibold text-slate-300 hover:text-white"
+              className="min-h-[36px] px-2.5 py-1 text-xs font-semibold text-slate-300 hover:text-white"
             >
               A-
             </button>
@@ -234,20 +246,22 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
             <button
               type="button"
               onClick={() => setFontSize((s) => Math.min(30, s + 2))}
-              className="px-2 py-1 text-xs font-semibold text-slate-300 hover:text-white"
+              className="min-h-[36px] px-2.5 py-1 text-xs font-semibold text-slate-300 hover:text-white"
             >
               A+
             </button>
           </div>
 
           <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-lg p-1 text-xs">
-            <span className="text-[11px] text-slate-400 px-2">Rolagem:</span>
+            <span className="text-[11px] text-slate-400 px-1.5 hidden sm:inline">
+              Rolagem:
+            </span>
             {([0, 1, 2] as const).map((spd) => (
               <button
                 key={spd}
                 type="button"
                 onClick={() => setAutoScrollSpeed(spd)}
-                className={`px-2 py-1 rounded text-[11px] font-medium ${
+                className={`min-h-[36px] px-2.5 py-1 rounded text-[11px] font-medium ${
                   autoScrollSpeed === spd
                     ? 'bg-amber-500 text-slate-950 font-semibold'
                     : 'text-slate-300 hover:text-white'
@@ -261,7 +275,7 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
           <button
             type="button"
             onClick={() => setIsEditing((e) => !e)}
-            className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
+            className={`min-h-[44px] px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
               isEditing
                 ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
                 : 'bg-slate-950 border-slate-800 text-slate-300 hover:text-white'
@@ -275,8 +289,8 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
       {/* Área Principal do Teleprompter */}
       <div
         ref={scrollContainerRef}
-        className={`rounded-2xl bg-[#050811] border border-slate-800 p-6 sm:p-8 overflow-y-auto custom-scroll ${
-          isTeleprompterFocus ? 'flex-1' : 'h-[400px]'
+        className={`rounded-2xl bg-[#050811] border border-slate-800 p-4 sm:p-8 overflow-y-auto custom-scroll ${
+          isTeleprompterFocus ? 'flex-1' : 'h-[340px] sm:h-[420px]'
         }`}
       >
         {isEditing ? (
@@ -296,7 +310,7 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
         )}
       </div>
 
-      {/* Barra de Validação Humana Obrigatória (RBAC) & Exportação */}
+      {/* Barra de Validação Humana (RBAC) & Exportação */}
       <div className="rounded-2xl bg-[#0B111E] border border-slate-800 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-start gap-3">
           {activeDoc.status === 'validado' ? (
@@ -308,6 +322,8 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
             <div className="text-xs font-semibold text-white">
               {activeDoc.status === 'validado'
                 ? `Peça Validada para Protocolo · ${activeDoc.validatedBy} (${activeDoc.validatedOab})`
+                : activeDoc.status === 'revisao_solicitada'
+                ? `Revisão OAB Solicitada por ${activeDoc.reviewRequestedBy ?? 'Estagiário'}`
                 : 'Validação Humana Obrigatória Pendente'}
             </div>
             <p className="text-[11px] text-slate-400 mt-0.5">
@@ -317,16 +333,16 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
                   ).toLocaleString('pt-BR')}`
                 : canValidate
                 ? `Logado como ${session.name} (${session.oab}). Revise a peça acima antes de liberar para protocolo.`
-                : 'Perfil Estagiário: rascunho pronto para revisão. Aprovação final requer Advogado ou Sócio.'}
+                : 'Perfil Estudante / Estagiário: envie o rascunho para revisão e assinatura do advogado responsável.'}
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full lg:w-auto">
           <button
             type="button"
             onClick={handleCopy}
-            className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-1.5"
+            className="min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center justify-center gap-1.5"
           >
             <Copy className="w-3.5 h-3.5 text-amber-400" />
             <span>Copiar</span>
@@ -334,32 +350,49 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
 
           <button
             type="button"
+            disabled={!canExportProtocol}
             onClick={handleExportTxt}
-            className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-1.5"
+            className={`min-h-[44px] px-3.5 py-2 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 ${
+              canExportProtocol
+                ? 'bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-200'
+                : 'bg-slate-950 border-slate-800 text-slate-500 cursor-not-allowed'
+            }`}
           >
-            <Download className="w-3.5 h-3.5 text-sky-400" />
-            <span>Exportar .TXT</span>
+            {canExportProtocol ? (
+              <Download className="w-3.5 h-3.5 text-sky-400" />
+            ) : (
+              <Lock className="w-3.5 h-3.5 text-slate-500" />
+            )}
+            <span>
+              {canExportProtocol ? 'Exportar .TXT' : 'Exportação Restrita'}
+            </span>
           </button>
 
-          {activeDoc.status !== 'validado' && (
-            <button
-              type="button"
-              disabled={!canValidate}
-              onClick={() => onValidateDoc(activeDoc.id)}
-              className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-800 disabled:text-slate-500 text-slate-950 text-xs font-bold flex items-center gap-1.5 transition-colors"
-            >
-              {canValidate ? (
+          {activeDoc.status !== 'validado' &&
+            (canValidate ? (
+              <button
+                type="button"
+                onClick={() => onValidateDoc(activeDoc.id)}
+                className="col-span-2 sm:col-span-1 min-h-[44px] px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+              >
                 <CheckCircle2 className="w-3.5 h-3.5" />
-              ) : (
-                <Lock className="w-3.5 h-3.5" />
-              )}
-              <span>
-                {canValidate
-                  ? 'Validar & Assinar OAB'
-                  : 'Requer Advogado/Sócio'}
-              </span>
-            </button>
-          )}
+                <span>Validar & Assinar OAB</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={activeDoc.status === 'revisao_solicitada'}
+                onClick={() => onRequestReview(activeDoc.id)}
+                className="col-span-2 sm:col-span-1 min-h-[44px] px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-400 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>
+                  {activeDoc.status === 'revisao_solicitada'
+                    ? 'Revisão Já Solicitada'
+                    : 'Solicitar Revisão OAB'}
+                </span>
+              </button>
+            ))}
         </div>
       </div>
     </div>
