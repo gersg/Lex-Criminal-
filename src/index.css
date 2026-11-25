@@ -66,3 +66,35 @@
 .custom-scroll::-webkit-scrollbar-thumb:hover {
   background: rgba(245, 158, 11, 0.6);
 }
+
+/* Official white-paper legal export & print sheet */
+.legal-paper {
+  background-color: #ffffff;
+  color: #111827;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-legal-doc,
+  #printable-legal-doc * {
+    visibility: visible;
+  }
+  #printable-legal-doc {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 18mm 20mm !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

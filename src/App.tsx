@@ -2,18 +2,24 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AppView,
   CaseRecord,
+  ClientRecord,
   ControlPanelSubTab,
+  DashboardSnapshot,
   ForumDocument,
   GovernanceConfig,
+  KnowledgeBaseItem,
   RbacRole,
   TeamMember,
   UserSession,
   WarModuleId,
+  WarRoomTabId,
 } from './types/lex';
 import {
   DEFAULT_GOVERNANCE,
   INITIAL_CASES,
+  INITIAL_CLIENTS,
   INITIAL_FORUM_DOC,
+  INITIAL_KNOWLEDGE_ITEMS,
   INITIAL_TEAM,
   ROLE_META,
 } from './data/mockCases';
@@ -50,11 +56,11 @@ import {
 } from 'lucide-react';
 
 const STORAGE_KEYS = {
-  session: 'lexramon_session_v3',
-  cases: 'lexramon_cases_v3',
-  docs: 'lexramon_docs_v3',
-  governance: 'lexramon_gov_v3',
-  team: 'lexramon_team_v3',
+  session: 'lexramon_session_v4',
+  cases: 'lexramon_cases_v4',
+  docs: 'lexramon_docs_v4',
+  governance: 'lexramon_gov_v4',
+  team: 'lexramon_team_v4',
 };
 
 const VIEW_TO_HASH: Record<AppView, string> = {
@@ -131,6 +137,10 @@ export default function App() {
   const [cases, setCases] = useState<CaseRecord[]>(() =>
     loadFromStorage<CaseRecord[]>(STORAGE_KEYS.cases, INITIAL_CASES)
   );
+  const [clientsList, setClientsList] = useState<ClientRecord[]>(INITIAL_CLIENTS);
+  const [knowledgeList, setKnowledgeList] = useState<KnowledgeBaseItem[]>(
+    INITIAL_KNOWLEDGE_ITEMS
+  );
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>(() =>
     loadFromStorage<TeamMember[]>(STORAGE_KEYS.team, INITIAL_TEAM)
   );
@@ -154,6 +164,8 @@ export default function App() {
     () => cases[0]?.id ?? INITIAL_CASES[0].id
   );
   const [activeModule, setActiveModule] = useState<WarModuleId>('custodia');
+  const [activeWarRoomTab, setActiveWarRoomTab] =
+    useState<WarRoomTabId>('ficha');
   const [activeForumDocId, setActiveForumDocId] = useState<string>(
     () => forumDocs[0]?.id ?? INITIAL_FORUM_DOC.id
   );
@@ -208,6 +220,27 @@ export default function App() {
       localStorage.setItem(STORAGE_KEYS.governance, JSON.stringify(governance));
     } catch {}
   }, [governance]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/dashboard');
+        if (!res.ok) return;
+        const data = (await res.json()) as DashboardSnapshot;
+        if (cancelled) return;
+        if (Array.isArray(data.clients) && data.clients.length > 0) {
+          setClientsList(data.clients);
+        }
+        if (Array.isArray(data.knowledge) && data.knowledge.length > 0) {
+          setKnowledgeList(data.knowledge);
+        }
+      } catch {}
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Guarded URL Hash Sync (Browser Back/Forward + Deep-Link Protection)
   useEffect(() => {
@@ -358,9 +391,14 @@ export default function App() {
     showToast(`Perfil alternado para: ${ROLE_META[role].shortLabel}`);
   };
 
-  const handleOpenWarRoom = (caseId: string, moduleId: WarModuleId) => {
+  const handleOpenWarRoom = (
+    caseId: string,
+    moduleId: WarModuleId,
+    tabId?: WarRoomTabId
+  ) => {
     setSelectedCaseId(caseId);
     setActiveModule(moduleId);
+    setActiveWarRoomTab(tabId ?? 'preparo');
     navigateTo('war-room');
   };
 
@@ -373,6 +411,7 @@ export default function App() {
     setCases((prev) => [newCase, ...prev]);
     setSelectedCaseId(newCase.id);
     setActiveModule(newCase.defaultModule);
+    setActiveWarRoomTab('ficha');
     showToast(`Assistido "${newCase.assistido}" cadastrado com sucesso`);
     if (openDirectly) {
       navigateTo('war-room');
@@ -381,6 +420,12 @@ export default function App() {
     } else {
       navigateTo('user-home');
     }
+  };
+
+  const handleUpdateCase = (updated: CaseRecord) => {
+    setCases((prev) =>
+      prev.map((c) => (c.id === updated.id ? updated : c))
+    );
   };
 
   const handleAssignCase = (caseId: string, assigneeName: string) => {
@@ -554,11 +599,11 @@ export default function App() {
 
   const topbarTitles: Record<AppView, string> = {
     'user-home': `Homepage · ${ROLE_META[session.role].shortLabel}`,
-    'war-room': 'War Room · Sub-telas Operacionais',
+    'war-room': 'War Room · Dossiê Vivo Caso a Caso',
     'painel-controle': 'Painel de Controle · Governança & Equipe',
     'visao-geral': 'Visão Geral · Métricas & Jornada',
     'novo-assistido': 'Novo Assistido · Leitura de APF',
-    'modo-forum': 'Modo Fórum · Teleprompter & Curadoria OAB',
+    'modo-forum': 'Modo Fórum · Leitura Estática & Curadoria OAB',
     'perfil-usuario': 'Minha Conta · Permissões RBAC',
   };
 
@@ -569,7 +614,7 @@ export default function App() {
   return (
     <div className="min-h-screen w-full bg-[#060B14] text-slate-100 flex flex-col lg:flex-row">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-64 shrink-0 flex-col justify-between bg-[#0C1424] border-r border-slate-800/80 p-3">
+      <aside className="no-print hidden lg:flex w-64 shrink-0 flex-col justify-between bg-[#0C1424] border-r border-slate-800/80 p-3">
         <div className="space-y-5">
           {/* Header Sidebar */}
           <div className="h-12 px-2 flex items-center justify-between border-b border-slate-800/80 pb-3">
@@ -800,7 +845,7 @@ export default function App() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Topbar Contextual (52px no mobile para respeitar 15% sticky cap) */}
-        <header className="sticky top-0 z-30 h-[52px] lg:h-14 shrink-0 px-3 sm:px-6 border-b border-slate-800/80 bg-[#0C1424]/95 flex items-center justify-between gap-2 sm:gap-4">
+        <header className="no-print sticky top-0 z-30 h-[52px] lg:h-14 shrink-0 px-3 sm:px-6 border-b border-slate-800/80 bg-[#0C1424]/95 flex items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               type="button"
@@ -820,6 +865,33 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {session.role !== 'estudante' && (
+              <div className="hidden md:flex items-center gap-1 p-1 rounded-lg bg-[#060B14] border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => handleSwitchRole('escritorio')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors whitespace-nowrap ${
+                    session.role === 'escritorio'
+                      ? 'bg-amber-500 text-slate-950'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Dr. Ramon
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSwitchRole('autonomo')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors whitespace-nowrap ${
+                    session.role === 'autonomo'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Dra. Jéssica
+                </button>
+              </div>
+            )}
+
             {activeView !== 'user-home' && (
               <button
                 type="button"
@@ -883,28 +955,49 @@ export default function App() {
                   <UserHomeScreen
                     session={session}
                     cases={cases}
+                    clients={clientsList}
+                    knowledgeItems={knowledgeList}
+                    onClientsChange={setClientsList}
+                    onKnowledgeChange={setKnowledgeList}
                     forumDocs={forumDocs}
                     governance={governance}
                     whatsappCount={whatsappCount}
                     initialStageId={postLoginStageId}
                     onNavigate={navigateTo}
+                    onCreateCase={handleSaveNewCase}
                     onOpenWarRoom={handleOpenWarRoom}
                     onOpenControlSubTab={handleOpenControlSubTab}
                     onSelectForumDoc={setActiveForumDocId}
                     onValidateDoc={handleValidateDoc}
                     onRequestReview={handleRequestReview}
+                    onSendToForum={handleSendToForum}
+                    onNotify={showToast}
                   />
                 )}
 
                 {activeView === 'war-room' && (
                   <WarRoomScreen
+                    session={session}
                     cases={cases}
+                    clients={clientsList}
+                    knowledgeItems={knowledgeList}
                     selectedCaseId={selectedCaseId}
                     activeModule={activeModule}
+                    activeTab={activeWarRoomTab}
                     governance={governance}
                     userRole={session.role}
                     onSelectCase={setSelectedCaseId}
                     onSelectModule={setActiveModule}
+                    onSelectTab={setActiveWarRoomTab}
+                    onUpdateCase={handleUpdateCase}
+                    onKnowledgeAdded={(item) =>
+                      setKnowledgeList((prev) => [item, ...prev])
+                    }
+                    onKnowledgeRemoved={(id) =>
+                      setKnowledgeList((prev) =>
+                        prev.filter((k) => k.id !== id)
+                      )
+                    }
                     onSendToForum={handleSendToForum}
                     onWhatsappGenerated={() => setWhatsappCount((c) => c + 1)}
                     onNotify={showToast}
@@ -977,7 +1070,7 @@ export default function App() {
       {/* Fixed Thumb-Zone Bottom Tab Bar (Mobile-First < 1024px) */}
       <nav
         aria-label="Navegação rápida mobile"
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 h-15 pb-safe bg-[#0C1424]/95 border-t border-slate-800 grid grid-cols-4 items-center"
+        className="no-print lg:hidden fixed bottom-0 left-0 right-0 z-40 h-15 pb-safe bg-[#0C1424]/95 border-t border-slate-800 grid grid-cols-4 items-center"
       >
         {(
           [

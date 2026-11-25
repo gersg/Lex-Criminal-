@@ -56,6 +56,17 @@ export async function hashPasswordSha256(
   return `fallback-${(hash >>> 0).toString(16)}`;
 }
 
+export async function computeSha256Hex(payload: string): Promise<string> {
+  if (typeof crypto !== 'undefined' && crypto.subtle) {
+    const encoded = new TextEncoder().encode(payload);
+    const digest = await crypto.subtle.digest('SHA-256', encoded);
+    return Array.from(new Uint8Array(digest), (b) =>
+      b.toString(16).padStart(2, '0')
+    ).join('');
+  }
+  return hashPasswordSha256(payload, 'lexramon_doc_2026');
+}
+
 export function generateSixDigitOtp(): string {
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
     const arr = new Uint32Array(1);

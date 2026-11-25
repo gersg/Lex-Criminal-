@@ -36,7 +36,7 @@ type AuthMode = 'login' | 'register' | 'recovery';
 type LoginStep = 'credentials' | 'two-factor';
 type RecoveryStep = 'request' | 'verify-reset' | 'done';
 
-const ACCOUNTS_STORAGE_KEY = 'lexramon_accounts_v1';
+const ACCOUNTS_STORAGE_KEY = 'lexramon_accounts_v2';
 
 interface AuthScreenProps {
   initialRole?: RbacRole;
@@ -589,10 +589,23 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     id: RbacRole;
     icon: React.FC<{ className?: string }>;
     tag: string;
+    monogram: string;
+    personTitle: string;
   }[] = [
-    { id: 'escritorio', icon: Building2, tag: 'Full Ops' },
-    { id: 'autonomo', icon: Briefcase, tag: 'Solo OAB' },
-    { id: 'estudante', icon: GraduationCap, tag: 'Supervisionado' },
+    {
+      id: 'escritorio',
+      icon: Building2,
+      tag: 'OAB/RN 14.820',
+      monogram: 'RR',
+      personTitle: 'Dr. Ramon Ribeiro · Sócio Fundador',
+    },
+    {
+      id: 'autonomo',
+      icon: Briefcase,
+      tag: 'OAB/RN 19.410',
+      monogram: 'DJ',
+      personTitle: 'Dra. Jéssica · Sócia RN & CE',
+    },
   ];
 
   const activeMeta = ROLE_META[selectedRole];
@@ -613,7 +626,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         <div className="flex items-center gap-2 text-[11px] font-mono-tabular text-slate-400">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
           <span className="hidden sm:inline">
-            Autenticação RBAC · OAB & Sigilo E2E
+            Autenticação RBAC · OAB RN/CE & Sigilo E2E
           </span>
           <span className="sm:hidden">Sigilo OAB · E2E</span>
         </div>
@@ -626,26 +639,30 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           <aside className="order-2 lg:order-1 lg:col-span-5 p-5 sm:p-7 bg-[#0E1627] border-t lg:border-t-0 lg:border-r border-slate-800 flex flex-col justify-between gap-6">
             <div className="space-y-5">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shrink-0">
-                  <Scale className="w-4 h-4" />
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-slate-950 font-display font-extrabold text-sm shrink-0">
+                  LR
                 </div>
-                <span className="font-display font-bold text-lg tracking-wider text-white">
-                  LEX<span className="text-amber-400">RAMON</span>
-                </span>
+                <div>
+                  <span className="font-display font-bold text-lg tracking-wider text-white block leading-none">
+                    LEX<span className="text-amber-400">RAMON</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    Dr. Ramon Ribeiro &amp; Dra. Jéssica
+                  </span>
+                </div>
               </div>
 
               <div>
                 <h2 className="font-display text-lg sm:text-xl font-bold text-white">
-                  Perfis de Acesso & Permissões
+                  Autenticação Exclusiva dos Sócios
                 </h2>
                 <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  Selecione um perfil para visualizar as alçadas ou carregar
-                  rapidamente a conta demonstrativa no formulário.
+                  Selecione o perfil entre Dr. Ramon Ribeiro e Dra. Jéssica para sincronizar dossiês, anotações internas e responsabilidades.
                 </p>
               </div>
 
               <div className="space-y-2.5">
-                {roleCards.map(({ id, icon: Icon, tag }) => {
+                {roleCards.map(({ id, icon: Icon, tag, monogram, personTitle }) => {
                   const meta = ROLE_META[id];
                   const active = selectedRole === id;
                   return (
@@ -660,18 +677,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                       }`}
                     >
                       <div
-                        className={`p-2 rounded-lg mt-0.5 shrink-0 ${
+                        className={`w-9 h-9 rounded-lg mt-0.5 shrink-0 flex items-center justify-center font-display font-bold text-xs ${
                           active
-                            ? 'bg-blue-500/20 text-blue-400'
-                            : 'bg-slate-900 text-slate-400'
+                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                            : 'bg-slate-900 text-slate-400 border border-slate-800'
                         }`}
                       >
-                        <Icon className="w-4 h-4" />
+                        <Icon className="sr-only" />
+                        <span>{monogram}</span>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-semibold text-xs sm:text-sm text-white truncate">
-                            {meta.label}
+                            {personTitle}
                           </span>
                           <span className="text-[11px] font-mono-tabular text-blue-400 font-semibold whitespace-nowrap shrink-0">
                             {tag}
@@ -807,28 +825,31 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                     </p>
                   </div>
 
-                  {/* Atalho Mobile Rápido de Perfis RBAC */}
-                  <div className="lg:hidden space-y-1.5">
+                  {/* Seleção Direta dos Sócios: Dr. Ramon Ribeiro | Dra. Jéssica */}
+                  <div className="space-y-1.5">
                     <span className="text-[11px] font-medium text-slate-400 block">
-                      Perfil demonstrativo rápido:
+                      Seleção direta de perfil dos sócios:
                     </span>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {(['escritorio', 'autonomo', 'estudante'] as RbacRole[]).map(
-                        (r) => (
-                          <button
-                            key={r}
-                            type="button"
-                            onClick={() => handleSelectRole(r)}
-                            className={`min-h-[40px] px-2 rounded-xl text-[11px] font-semibold border transition-colors ${
-                              selectedRole === r
-                                ? 'bg-blue-600/20 border-blue-500/50 text-blue-300'
-                                : 'bg-[#060B14] border-slate-800 text-slate-400'
-                            }`}
-                          >
-                            {ROLE_META[r].shortLabel}
-                          </button>
-                        )
-                      )}
+                    <div className="grid grid-cols-2 gap-2">
+                      {(
+                        [
+                          { role: 'escritorio' as RbacRole, label: 'Dr. Ramon Ribeiro (RN)' },
+                          { role: 'autonomo' as RbacRole, label: 'Dra. Jéssica (CE/RN)' },
+                        ] as const
+                      ).map((item) => (
+                        <button
+                          key={item.role}
+                          type="button"
+                          onClick={() => handleSelectRole(item.role)}
+                          className={`min-h-[42px] px-3 rounded-xl text-xs font-semibold border transition-colors ${
+                            selectedRole === item.role
+                              ? 'bg-blue-600/20 border-blue-500/60 text-blue-200'
+                              : 'bg-[#060B14] border-slate-800 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
@@ -841,7 +862,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                       autoComplete="username"
                       value={loginIdentifier}
                       onChange={(e) => setLoginIdentifier(e.target.value)}
-                      placeholder="ramon@medeirosadvocacia.com.br ou OAB/RN 14.820"
+                      placeholder="ramon@ramonribeiro.adv.br ou OAB/RN 14.820"
                       className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#060B14] border border-slate-800 text-sm text-white focus:outline-none focus:border-blue-500"
                       required
                     />

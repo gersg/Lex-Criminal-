@@ -113,7 +113,7 @@ const STAGE_BLUEPRINTS: StageBlueprint[] = [
     step: '05',
     shortLabel: 'Fórum',
     title: 'Modo Fórum & Curadoria OAB',
-    phaseSubtitle: 'Teleprompter de sustentação oral e validação ética assinada.',
+    phaseSubtitle: 'Leitura estática de audiência e validação ética assinada.',
     legalNote: 'Zero alucinação · Assinatura nominal OAB e despacho rápido.',
     ctaLabel: 'Abrir Modo Fórum',
     position: [4.4, 0, 1.8],

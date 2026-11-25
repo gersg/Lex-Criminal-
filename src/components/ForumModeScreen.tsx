@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ForumDocument, UserSession } from '../types/lex';
 import { ROLE_META } from '../data/mockCases';
 import {
@@ -10,6 +10,7 @@ import {
   Minimize2,
   Pause,
   Play,
+  Printer,
   RotateCcw,
   Send,
   ShieldCheck,
@@ -41,12 +42,10 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
 
   const [fontSize, setFontSize] = useState<number>(18);
   const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [isTeleprompterFocus, setIsTeleprompterFocus] = useState<boolean>(false);
-  const [autoScrollSpeed, setAutoScrollSpeed] = useState<0 | 1 | 2>(0);
+  const [isForumFocus, setIsForumFocus] = useState<boolean>(false);
   const [timerSeconds, setTimerSeconds] = useState<number>(900);
   const [timerRunning, setTimerRunning] = useState<boolean>(false);
 
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const perms = ROLE_META[session.role].permissions;
   const canValidate = perms.canValidate;
   const canExportProtocol = perms.canExportProtocol;
@@ -65,16 +64,6 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
     }, 1000);
     return () => clearInterval(id);
   }, [timerRunning, onNotify]);
-
-  useEffect(() => {
-    if (autoScrollSpeed === 0 || isEditing) return;
-    const id = window.setInterval(() => {
-      if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTop += autoScrollSpeed;
-      }
-    }, 45);
-    return () => clearInterval(id);
-  }, [autoScrollSpeed, isEditing]);
 
   const formattedTime = `${String(Math.floor(timerSeconds / 60)).padStart(
     2,
@@ -129,7 +118,7 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
   return (
     <div
       className={
-        isTeleprompterFocus
+        isForumFocus
           ? 'fixed inset-0 z-50 bg-[#050811] p-4 sm:p-8 flex flex-col gap-4'
           : 'space-y-5'
       }
@@ -138,7 +127,7 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs font-medium text-amber-400">
-            Modo Fórum · Leitura de Alto Contraste & Curadoria OAB
+            Modo Fórum · Leitura Estática de Audiência & Curadoria OAB
           </p>
           <h2 className="font-display text-xl sm:text-2xl font-bold text-white mt-0.5">
             {activeDoc.title}
@@ -165,10 +154,10 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
 
           <button
             type="button"
-            onClick={() => setIsTeleprompterFocus((v) => !v)}
+            onClick={() => setIsForumFocus((v) => !v)}
             className="w-full sm:w-auto min-h-[44px] px-3.5 py-2 rounded-xl bg-[#0B111E] border border-slate-800 hover:border-amber-500/40 text-xs font-semibold text-slate-200 flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap"
           >
-            {isTeleprompterFocus ? (
+            {isForumFocus ? (
               <>
                 <Minimize2 className="w-3.5 h-3.5 text-amber-400" />
                 <span>Sair da Tela Cheia</span>
@@ -252,26 +241,6 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
             </button>
           </div>
 
-          <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-lg p-1 text-xs">
-            <span className="text-[11px] text-slate-400 px-1.5 hidden sm:inline">
-              Rolagem:
-            </span>
-            {([0, 1, 2] as const).map((spd) => (
-              <button
-                key={spd}
-                type="button"
-                onClick={() => setAutoScrollSpeed(spd)}
-                className={`min-h-[36px] px-2.5 py-1 rounded text-[11px] font-medium ${
-                  autoScrollSpeed === spd
-                    ? 'bg-amber-500 text-slate-950 font-semibold'
-                    : 'text-slate-300 hover:text-white'
-                }`}
-              >
-                {spd === 0 ? 'Manual' : spd === 1 ? '1x' : '2x'}
-              </button>
-            ))}
-          </div>
-
           <button
             type="button"
             onClick={() => setIsEditing((e) => !e)}
@@ -286,11 +255,10 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
         </div>
       </div>
 
-      {/* Área Principal do Teleprompter */}
+      {/* Área Estática de Leitura para Audiência */}
       <div
-        ref={scrollContainerRef}
         className={`rounded-2xl bg-[#050811] border border-slate-800 p-4 sm:p-8 overflow-y-auto custom-scroll ${
-          isTeleprompterFocus ? 'flex-1' : 'h-[340px] sm:h-[420px]'
+          isForumFocus ? 'flex-1' : 'min-h-[340px] max-h-[540px]'
         }`}
       >
         {isEditing ? (
@@ -346,6 +314,15 @@ export const ForumModeScreen: React.FC<ForumModeScreenProps> = ({
           >
             <Copy className="w-3.5 h-3.5 text-amber-400" />
             <span>Copiar</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center justify-center gap-1.5"
+          >
+            <Printer className="w-3.5 h-3.5 text-blue-400" />
+            <span>Imprimir / PDF</span>
           </button>
 
           <button
